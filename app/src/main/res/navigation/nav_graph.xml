@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/nav_graph"
+    app:startDestination="@id/homeFragment">
+
+    <fragment
+        android:id="@+id/homeFragment"
+        android:name="com.example.plantpal.HomeFragment"
+        android:label="fragment_home"
+        tools:layout="@layout/fragment_home">
+        <!-- Add any actions or arguments for the home fragment here -->
+    </fragment>
+
+    <fragment
+        android:id="@+id/bookmarksFragment"
+        android:name="com.example.plantpal.BookmarksFragment"
+        android:label="fragment_bookmarks"
+        tools:layout="@layout/fragment_bookmarks">
+        <!-- Add any actions or arguments for the bookmarks fragment here -->
+    </fragment>
+
+    <fragment
+        android:id="@+id/addPlantFragment"
+        android:name="com.example.plantpal.AddPlantFragment"
+        android:label="fragment_add_plant"
+        tools:layout="@layout/fragment_add_plant">
+        <!-- Add any actions or arguments for the add plant fragment here -->
+    </fragment>
+
+    <fragment
+        android:id="@+id/calendarFragment"
+        android:name="com.example.plantpal.CalendarFragment"
+        android:label="fragment_calendar"
+        tools:layout="@layout/fragment_calendar">
+        <!-- Add any actions or arguments for the calendar fragment here -->
+    </fragment>
+
+    <fragment
+        android:id="@+id/profileFragment"
+        android:name="com.example.plantpal.ProfileFragment"
+        android:label="fragment_profile"
+        tools:layout="@layout/fragment_profile">
+        <!-- Add any actions or arguments for the profile fragment here -->
+    </fragment>
+
+</navigation>

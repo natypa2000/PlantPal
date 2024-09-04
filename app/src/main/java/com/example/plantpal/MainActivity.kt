@@ -2,6 +2,8 @@ package com.example.plantpal
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
 import com.example.plantpal.databinding.ActivityMainBinding
+import androidx.navigation.findNavController
+import androidx.navigation.ui.setupWithNavController
 
 class MainActivity : AppCompatActivity() {
 
