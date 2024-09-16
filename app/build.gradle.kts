@@ -42,6 +42,7 @@ android {
 
 dependencies {
 
+    implementation(libs.firebase.firestore.ktx)
     val navVersion = "2.7.5"  // Use the latest version
     implementation("androidx.navigation:navigation-fragment-ktx:$navVersion")
     implementation("androidx.navigation:navigation-ui-ktx:$navVersion")
@@ -58,4 +59,5 @@ dependencies {
     androidTestImplementation(libs.androidx.espresso.core)
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.analytics)
+
 }

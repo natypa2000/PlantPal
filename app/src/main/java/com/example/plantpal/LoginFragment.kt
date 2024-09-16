@@ -1,10 +1,12 @@
 package com.example.plantpal
+
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
 import androidx.fragment.app.Fragment
+import androidx.navigation.fragment.findNavController
 import com.example.plantpal.databinding.FragmentLoginBinding
 import com.google.firebase.auth.FirebaseAuth
 
@@ -32,40 +34,22 @@ class LoginFragment : Fragment() {
             val password = binding.passwordEditText.text.toString()
 
             if (email.isNotEmpty() && password.isNotEmpty()) {
-                loginUser(email, password)
+                auth.signInWithEmailAndPassword(email, password)
+                    .addOnCompleteListener { task ->
+                        if (task.isSuccessful) {
+                            findNavController().navigate(R.id.action_loginFragment_to_homeFragment)
+                        } else {
+                            Toast.makeText(context, "Login failed: ${task.exception?.message}", Toast.LENGTH_SHORT).show()
+                        }
+                    }
             } else {
-                Toast.makeText(requireContext(), "Please enter email and password", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, "Please enter email and password", Toast.LENGTH_SHORT).show()
             }
         }
 
-        binding.forgotPasswordText.setOnClickListener {
-            // Implement forgot password functionality
+        binding.registerButton.setOnClickListener {
+            findNavController().navigate(R.id.action_loginFragment_to_registerFragment)
         }
-
-        binding.signUpText.setOnClickListener {
-            // Navigate to RegisterFragment
-            parentFragmentManager.beginTransaction()
-                .replace(R.id.fragment_container, RegisterFragment())
-                .addToBackStack(null)
-                .commit()
-        }
-    }
-
-    private fun loginUser(email: String, password: String) {
-        auth.signInWithEmailAndPassword(email, password)
-            .addOnCompleteListener(requireActivity()) { task ->
-                if (task.isSuccessful) {
-                    // Sign in success, update UI with the signed-in user's information
-                    Toast.makeText(requireContext(), "Login successful", Toast.LENGTH_SHORT).show()
-                    // Navigate to HomeFragment
-                    parentFragmentManager.beginTransaction()
-                        .replace(R.id.fragment_container, HomeFragment())
-                        .commit()
-                } else {
-                    // If sign in fails, display a message to the user.
-                    Toast.makeText(requireContext(), "Authentication failed: ${task.exception?.message}", Toast.LENGTH_SHORT).show()
-                }
-            }
     }
 
     override fun onDestroyView() {
