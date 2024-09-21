@@ -4,16 +4,15 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.plantpal.databinding.FragmentHomeBinding
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.google.android.material.snackbar.Snackbar
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.storage.FirebaseStorage
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
-import com.google.android.material.snackbar.Snackbar
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -28,11 +27,9 @@ class HomeFragment : Fragment() {
     private lateinit var firestore: FirebaseFirestore
     private lateinit var storage: FirebaseStorage
     private lateinit var plantAdapter: PlantAdapter
+    private var currentEnvironmentId: String? = null
 
-    override fun onCreateView(
-        inflater: LayoutInflater, container: ViewGroup?,
-        savedInstanceState: Bundle?
-    ): View {
+    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         _binding = FragmentHomeBinding.inflate(inflater, container, false)
         return binding.root
     }
@@ -45,14 +42,18 @@ class HomeFragment : Fragment() {
         storage = FirebaseStorage.getInstance()
 
         setupRecyclerView()
-        loadPlants()
+        checkForEnvironment()
 
-        binding.searchIcon.setOnClickListener {
-            Toast.makeText(context, "Search functionality coming soon!", Toast.LENGTH_SHORT).show()
+        binding.addEnvironmentFab.setOnClickListener {
+            showCreateEnvironmentDialog()
         }
 
         binding.addPlantFab.setOnClickListener {
-            addNewPlant()
+            if (currentEnvironmentId != null) {
+                addNewPlant()
+            } else {
+                showSnackbar("Please create an environment first")
+            }
         }
     }
 
@@ -68,35 +69,104 @@ class HomeFragment : Fragment() {
         }
     }
 
-    private fun loadPlants() {
-        val currentUserId = auth.currentUser?.uid ?: return
-        firestore.collection("plants")
-            .whereEqualTo("creatorId", currentUserId)
-            .addSnapshotListener { snapshot, e ->
-                if (e != null) {
-                    showSnackbar("Error loading plants: ${e.message}")
-                    return@addSnapshotListener
+    private fun checkForEnvironment() {
+        val userId = auth.currentUser?.uid ?: return
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val environmentQuery = firestore.collection("environments")
+                    .whereEqualTo("creatorId", userId)
+                    .get()
+                    .await()
+
+                if (environmentQuery.documents.isNotEmpty()) {
+                    currentEnvironmentId = environmentQuery.documents[0].id
+                    withContext(Dispatchers.Main) {
+                        binding.addEnvironmentFab.visibility = View.GONE
+                        binding.addPlantFab.visibility = View.VISIBLE
+                        loadPlants()
+                    }
+                } else {
+                    withContext(Dispatchers.Main) {
+                        binding.addEnvironmentFab.visibility = View.VISIBLE
+                        binding.addPlantFab.visibility = View.GONE
+                        showSnackbar("Create an environment to start adding plants")
+                    }
                 }
-                val plants = snapshot?.documents?.mapNotNull { doc ->
-                    doc.toObject(Plant::class.java)?.apply { id = doc.id }
-                } ?: emptyList()
-                plantAdapter.updatePlants(plants)
-                updateEmptyState(plants.isEmpty())
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    showSnackbar("Error checking for environment: ${e.message}")
+                }
             }
+        }
+    }
+
+    private fun showCreateEnvironmentDialog() {
+        val input = layoutInflater.inflate(R.layout.dialog_create_environment, null)
+        val editText = input.findViewById<com.google.android.material.textfield.TextInputEditText>(R.id.environmentNameInput)
+
+        MaterialAlertDialogBuilder(requireContext())
+            .setTitle("Create Environment")
+            .setView(input)
+            .setPositiveButton("Create") { _, _ ->
+                val environmentName = editText.text.toString()
+                if (environmentName.isNotEmpty()) {
+                    createEnvironment(environmentName)
+                } else {
+                    showSnackbar("Please enter an environment name")
+                }
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    private fun createEnvironment(name: String) {
+        val userId = auth.currentUser?.uid ?: return
+        val environment = hashMapOf(
+            "name" to name,
+            "creatorId" to userId,
+            "users" to mapOf(userId to "creator")  // This ensures the creator has full permissions
+        )
+
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val documentRef = firestore.collection("environments").add(environment).await()
+                currentEnvironmentId = documentRef.id
+                withContext(Dispatchers.Main) {
+                    binding.addEnvironmentFab.visibility = View.GONE
+                    binding.addPlantFab.visibility = View.VISIBLE
+                    showSnackbar("Environment created successfully")
+                    loadPlants()
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    showSnackbar("Error creating environment: ${e.message}")
+                }
+            }
+        }
+    }
+
+    private fun loadPlants() {
+        currentEnvironmentId?.let { envId ->
+            firestore.collection("plants")
+                .whereEqualTo("environmentId", envId)
+                .addSnapshotListener { snapshot, e ->
+                    if (e != null) {
+                        showSnackbar("Error loading plants: ${e.message}")
+                        return@addSnapshotListener
+                    }
+                    val plants = snapshot?.toObjects(Plant::class.java) ?: emptyList()
+                    plantAdapter.updatePlants(plants)
+                    updateEmptyState(plants.isEmpty())
+                }
+        }
     }
 
     private fun updateEmptyState(isEmpty: Boolean) {
-        _binding?.let { binding ->
-            binding.emptyStateText.visibility = if (isEmpty) View.VISIBLE else View.GONE
-            binding.plantList.visibility = if (isEmpty) View.GONE else View.VISIBLE
-        }
+        binding.emptyStateText.visibility = if (isEmpty) View.VISIBLE else View.GONE
+        binding.plantList.visibility = if (isEmpty) View.GONE else View.VISIBLE
     }
 
     private fun showDeleteConfirmationDialog(plant: Plant) {
-        if (plant.id.isBlank()) {
-            showSnackbar("Error: Invalid plant ID")
-            return
-        }
         MaterialAlertDialogBuilder(requireContext())
             .setTitle("Delete Plant")
             .setMessage("Are you sure you want to delete ${plant.name}?")
@@ -106,55 +176,42 @@ class HomeFragment : Fragment() {
     }
 
     private fun deletePlant(plant: Plant) {
-        if (plant.id.isBlank()) {
-            showSnackbar("Error: Invalid plant ID")
-            return
-        }
-        showLoading(true)
-
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                // Delete image from Storage
-                if (plant.imageUrl.isNotBlank()) {
-                    val imageRef = storage.getReferenceFromUrl(plant.imageUrl)
-                    imageRef.delete().await()
-                }
-
-                // Delete plant document from Firestore
                 firestore.collection("plants").document(plant.id).delete().await()
-
+                if (plant.imageUrl.isNotEmpty()) {
+                    storage.getReferenceFromUrl(plant.imageUrl).delete().await()
+                }
                 withContext(Dispatchers.Main) {
-                    showLoading(false)
-                    showSnackbar("${plant.name} deleted successfully")
+                    showSnackbar("Plant deleted successfully")
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
-                    showLoading(false)
-                    showSnackbar("Error deleting ${plant.name}: ${e.message}")
+                    showSnackbar("Error deleting plant: ${e.message}")
                 }
             }
         }
     }
 
-    private fun showLoading(isLoading: Boolean) {
-        _binding?.let { binding ->
-            binding.progressBar.visibility = if (isLoading) View.VISIBLE else View.GONE
-            binding.addPlantFab.isEnabled = !isLoading
+    private fun editPlant(plant: Plant) {
+        currentEnvironmentId?.let { envId ->
+            val action = HomeFragmentDirections.actionHomeFragmentToAddPlantFragment(plant.id, envId)
+            findNavController().navigate(action)
         }
     }
 
-    private fun showSnackbar(message: String) {
-        view?.let { Snackbar.make(it, message, Snackbar.LENGTH_LONG).show() }
-    }
-
-    private fun editPlant(plant: Plant) {
-        val action = HomeFragmentDirections.actionHomeFragmentToAddPlantFragment(plant.id)
-        findNavController().navigate(action)
-    }
-
     private fun addNewPlant() {
-        val action = HomeFragmentDirections.actionHomeFragmentToAddPlantFragment(null)
-        findNavController().navigate(action)
+        currentEnvironmentId?.let { envId ->
+            val action = HomeFragmentDirections.actionHomeFragmentToAddPlantFragment(
+                plantId = null,
+                environmentId = envId
+            )
+            findNavController().navigate(action)
+        } ?: showSnackbar("Please create an environment first")
+    }
+
+    private fun showSnackbar(message: String) {
+        Snackbar.make(binding.root, message, Snackbar.LENGTH_LONG).show()
     }
 
     override fun onDestroyView() {

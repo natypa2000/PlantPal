@@ -48,8 +48,11 @@ class AddPlantFragment : Fragment() {
 
     private var photoUri: Uri? = null
     private var plantId: String? = null
+    private var environmentId: String? = null
 
     private val args: AddPlantFragmentArgs by navArgs()
+
+    private var userRole: String = ""
 
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -57,7 +60,7 @@ class AddPlantFragment : Fragment() {
         if (isGranted) {
             startCamera()
         } else {
-            Toast.makeText(context, "Camera permission is required to take photos", Toast.LENGTH_SHORT).show()
+            showToast("Camera permission is required to take photos")
         }
     }
 
@@ -87,9 +90,11 @@ class AddPlantFragment : Fragment() {
         auth = FirebaseAuth.getInstance()
 
         plantId = args.plantId
+        environmentId = args.environmentId
 
         setupUI()
         setupListeners()
+        checkUserPermissions()
 
         cameraExecutor = Executors.newSingleThreadExecutor()
 
@@ -122,6 +127,50 @@ class AddPlantFragment : Fragment() {
         }
     }
 
+    private fun checkUserPermissions() {
+        val currentUserId = auth.currentUser?.uid ?: return
+        lifecycleScope.launch {
+            try {
+                val environmentDoc = environmentId?.let {
+                    db.collection("environments").document(it).get().await()
+                }
+
+                if (environmentDoc != null && environmentDoc.exists()) {
+                    val users = environmentDoc.get("users") as? Map<String, String>
+                    userRole = users?.get(currentUserId) ?: "viewer"
+
+                    withContext(Dispatchers.Main) {
+                        updateUIBasedOnRole()
+                    }
+                } else {
+                    withContext(Dispatchers.Main) {
+                        showSnackbar("Environment not found")
+                    }
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    showSnackbar("Error checking permissions: ${e.message}")
+                }
+            }
+        }
+    }
+
+    private fun updateUIBasedOnRole() {
+        val isCreatorOrEditor = userRole == "creator" || userRole == "editor"
+        binding.buttonSave.isEnabled = isCreatorOrEditor
+        binding.buttonTakePhoto.isEnabled = isCreatorOrEditor
+        binding.buttonChoosePhoto.isEnabled = isCreatorOrEditor
+        binding.editTextPlantName.isEnabled = isCreatorOrEditor
+        binding.editTextNotes.isEnabled = isCreatorOrEditor
+        binding.numberPickerFrequency.isEnabled = isCreatorOrEditor
+        binding.spinnerFrequency.isEnabled = isCreatorOrEditor
+        binding.editTextTags.isEnabled = isCreatorOrEditor
+
+        if (!isCreatorOrEditor) {
+            showSnackbar("You are in view-only mode")
+        }
+    }
+
     private fun loadPlantData(plantId: String) {
         db.collection("plants").document(plantId).get()
             .addOnSuccessListener { document ->
@@ -133,7 +182,7 @@ class AddPlantFragment : Fragment() {
                 }
             }
             .addOnFailureListener { exception ->
-                Toast.makeText(context, "Error loading plant: ${exception.message}", Toast.LENGTH_SHORT).show()
+                showSnackbar("Error loading plant: ${exception.message}")
             }
     }
 
@@ -144,7 +193,6 @@ class AddPlantFragment : Fragment() {
         binding.spinnerFrequency.setSelection(getFrequencyPeriodIndex(plant.frequencyPeriod))
         binding.editTextTags.setText(plant.tags.joinToString(", "))
 
-        // Load image using a coroutine
         lifecycleScope.launch(Dispatchers.IO) {
             try {
                 val bitmap = withContext(Dispatchers.IO) {
@@ -158,7 +206,7 @@ class AddPlantFragment : Fragment() {
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
-                    Toast.makeText(context, "Failed to load image", Toast.LENGTH_SHORT).show()
+                    showSnackbar("Failed to load image")
                 }
             }
         }
@@ -184,7 +232,7 @@ class AddPlantFragment : Fragment() {
                 startCamera()
             }
             shouldShowRequestPermissionRationale(Manifest.permission.CAMERA) -> {
-                Toast.makeText(context, "Camera permission is required to take photos", Toast.LENGTH_SHORT).show()
+                showSnackbar("Camera permission is required to take photos")
             }
             else -> {
                 requestPermissionLauncher.launch(Manifest.permission.CAMERA)
@@ -217,7 +265,7 @@ class AddPlantFragment : Fragment() {
                 binding.buttonCapturePhoto.visibility = View.VISIBLE
                 binding.buttonCapturePhoto.setOnClickListener { takePhoto() }
             } catch (exc: Exception) {
-                Toast.makeText(context, "Failed to start camera", Toast.LENGTH_SHORT).show()
+                showSnackbar("Failed to start camera")
             }
         }, ContextCompat.getMainExecutor(requireContext()))
     }
@@ -238,7 +286,7 @@ class AddPlantFragment : Fragment() {
             ContextCompat.getMainExecutor(requireContext()),
             object : ImageCapture.OnImageSavedCallback {
                 override fun onError(exc: ImageCaptureException) {
-                    Toast.makeText(context, "Photo capture failed: ${exc.message}", Toast.LENGTH_SHORT).show()
+                    showSnackbar("Photo capture failed: ${exc.message}")
                 }
 
                 override fun onImageSaved(output: ImageCapture.OutputFileResults) {
@@ -261,7 +309,7 @@ class AddPlantFragment : Fragment() {
         val tags = binding.editTextTags.text.toString().split(",").map { it.trim() }
 
         if (plantName.isBlank()) {
-            Toast.makeText(context, "Please enter a plant name", Toast.LENGTH_SHORT).show()
+            showSnackbar("Please enter a plant name")
             return
         }
 
@@ -273,7 +321,8 @@ class AddPlantFragment : Fragment() {
                     "frequencyPeriod" to frequencyPeriod,
                     "notes" to notes,
                     "tags" to tags,
-                    "creatorId" to auth.currentUser?.uid
+                    "creatorId" to auth.currentUser?.uid,
+                    "environmentId" to (environmentId ?: "")
                 )
 
                 val documentId = plantId ?: db.collection("plants").document().id
@@ -287,10 +336,10 @@ class AddPlantFragment : Fragment() {
                     db.collection("plants").document(documentId).set(plant).await()
                 }
 
-                Toast.makeText(context, "Plant saved successfully", Toast.LENGTH_SHORT).show()
+                showSnackbar("Plant saved successfully")
                 findNavController().popBackStack()
             } catch (e: Exception) {
-                Toast.makeText(context, "Error saving plant: ${e.message}", Toast.LENGTH_SHORT).show()
+                showSnackbar("Error saving plant: ${e.message}")
             }
         }
     }
@@ -301,6 +350,16 @@ class AddPlantFragment : Fragment() {
             storageRef.putFile(imageUri).await()
             storageRef.downloadUrl.await().toString()
         }
+    }
+
+    private fun showSnackbar(message: String) {
+        view?.let {
+            com.google.android.material.snackbar.Snackbar.make(it, message, com.google.android.material.snackbar.Snackbar.LENGTH_LONG).show()
+        }
+    }
+
+    private fun showToast(message: String) {
+        Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
     }
 
     override fun onDestroyView() {

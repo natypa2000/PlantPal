@@ -72,5 +72,6 @@ data class Plant(
     val imageUrl: String = "",
     val notes: String = "",
     val tags: List<String> = emptyList(),
-    val creatorId: String = ""
+    val creatorId: String = "",
+    val environmentId: String = ""
 )
