@@ -11,7 +11,7 @@ import kotlinx.coroutines.withContext
 
 class PlantAdapter(
     private var plants: List<Plant>,
-    private val onDeleteClick: (String) -> Unit,
+    private val onDeleteClick: (Plant) -> Unit,
     private val onEditClick: (Plant) -> Unit
 ) : RecyclerView.Adapter<PlantAdapter.PlantViewHolder>() {
 
@@ -48,7 +48,7 @@ class PlantAdapter(
             }
 
             // Set up delete button
-            deleteButton.setOnClickListener { onDeleteClick(plant.id) }
+            deleteButton.setOnClickListener { onDeleteClick(plant) }
 
             // Set up edit button
             editButton.setOnClickListener { onEditClick(plant) }
@@ -64,7 +64,7 @@ class PlantAdapter(
 }
 
 data class Plant(
-    val id: String = "",
+    var id: String = "",
     val name: String = "",
     val description: String = "",
     val wateringFrequency: Int = 0,
