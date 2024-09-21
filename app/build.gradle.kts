@@ -60,6 +60,7 @@ dependencies {
     androidTestImplementation(libs.androidx.espresso.core)
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.analytics)
+    implementation("com.google.android.material:material:1.9.0")
 
     // CameraX
     val cameraxVersion = "1.3.0"
