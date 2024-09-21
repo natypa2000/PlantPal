@@ -51,6 +51,7 @@
             app:destination="@id/profileFragment" />
     </fragment>
 
+
     <fragment
         android:id="@+id/bookmarksFragment"
         android:name="com.example.plantpal.BookmarksFragment"
@@ -66,9 +67,11 @@
         android:name="com.example.plantpal.AddPlantFragment"
         android:label="fragment_add_plant"
         tools:layout="@layout/fragment_add_plant">
-        <action
-            android:id="@+id/action_addPlantFragment_to_homeFragment"
-            app:destination="@id/homeFragment" />
+        <argument
+            android:name="plantId"
+            app:argType="string"
+            android:defaultValue="@null"
+            app:nullable="true" />
     </fragment>
 
     <fragment
