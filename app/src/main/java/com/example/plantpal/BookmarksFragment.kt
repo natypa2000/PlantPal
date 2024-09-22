@@ -55,7 +55,12 @@ class BookmarksFragment : Fragment() {
     }
 
     private fun loadPlants() {
-        val currentUserId = FirebaseAuth.getInstance().currentUser?.uid ?: return
+        val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
+        if (currentUserId == null) {
+            // Handle unauthenticated user
+            return
+        }
+
         firestoreListener = firestore.collection("plants")
             .whereEqualTo("creatorId", currentUserId)
             .addSnapshotListener { snapshot, e ->

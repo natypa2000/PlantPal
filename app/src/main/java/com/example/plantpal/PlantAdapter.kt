@@ -4,6 +4,7 @@ import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
 import com.example.plantpal.databinding.ItemPlantBinding
+import com.google.firebase.firestore.DocumentSnapshot
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -47,10 +48,7 @@ class PlantAdapter(
                 }
             }
 
-            // Set up delete button
             deleteButton.setOnClickListener { onDeleteClick(plant) }
-
-            // Set up edit button
             editButton.setOnClickListener { onEditClick(plant) }
         }
     }
@@ -74,4 +72,17 @@ data class Plant(
     val tags: List<String> = emptyList(),
     val creatorId: String = "",
     val environmentId: String = ""
-)
+) {
+    constructor(doc: DocumentSnapshot) : this(
+        id = doc.id,
+        name = doc.getString("name") ?: "",
+        description = doc.getString("description") ?: "",
+        wateringFrequency = doc.getLong("wateringFrequency")?.toInt() ?: 0,
+        frequencyPeriod = doc.getString("frequencyPeriod") ?: "",
+        imageUrl = doc.getString("imageUrl") ?: "",
+        notes = doc.getString("notes") ?: "",
+        tags = doc.get("tags") as? List<String> ?: emptyList(),
+        creatorId = doc.getString("creatorId") ?: "",
+        environmentId = doc.getString("environmentId") ?: ""
+    )
+}
