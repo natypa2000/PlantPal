@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -49,6 +50,7 @@ class AddPlantFragment : Fragment() {
     private var photoUri: Uri? = null
     private var plantId: String? = null
     private var environmentId: String? = null
+    private var imageUrl: String? = null
 
     private val args: AddPlantFragmentArgs by navArgs()
 
@@ -74,10 +76,24 @@ class AddPlantFragment : Fragment() {
         }
     }
 
-    override fun onCreateView(
-        inflater: LayoutInflater, container: ViewGroup?,
-        savedInstanceState: Bundle?
-    ): View {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        arguments?.let {
+            plantId = it.getString("plantId")
+            environmentId = it.getString("environmentId")
+        }
+
+        if (environmentId == null) {
+            environmentId = getCurrentEnvironmentId()
+        }
+    }
+
+    private fun getCurrentEnvironmentId(): String? {
+        val sharedPref = activity?.getPreferences(android.content.Context.MODE_PRIVATE) ?: return null
+        return sharedPref.getString("current_environment_id", null)
+    }
+
+    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         _binding = FragmentAddPlantBinding.inflate(inflater, container, false)
         return binding.root
     }
@@ -85,16 +101,21 @@ class AddPlantFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
+        auth = FirebaseAuth.getInstance()
         db = FirebaseFirestore.getInstance()
         storage = FirebaseStorage.getInstance()
-        auth = FirebaseAuth.getInstance()
 
-        plantId = args.plantId
-        environmentId = args.environmentId
+        args.let {
+            plantId = it.plantId
+            environmentId = it.environmentId
+        }
+
+        if (environmentId == null) {
+            environmentId = getCurrentEnvironmentId()
+        }
 
         setupUI()
         setupListeners()
-        checkUserPermissions()
 
         cameraExecutor = Executors.newSingleThreadExecutor()
 
@@ -144,7 +165,7 @@ class AddPlantFragment : Fragment() {
                     }
                 } else {
                     withContext(Dispatchers.Main) {
-                        showSnackbar("Environment not found")
+                        showSnackbar("Environment not found. Please go back and try again.")
                     }
                 }
             } catch (e: Exception) {
@@ -192,11 +213,19 @@ class AddPlantFragment : Fragment() {
         binding.numberPickerFrequency.value = plant.wateringFrequency
         binding.spinnerFrequency.setSelection(getFrequencyPeriodIndex(plant.frequencyPeriod))
         binding.editTextTags.setText(plant.tags.joinToString(", "))
+        imageUrl = plant.imageUrl
 
+        // Load and display the image
+        if (plant.imageUrl.isNotEmpty()) {
+            loadImage(plant.imageUrl)
+        }
+    }
+
+    private fun loadImage(url: String) {
         lifecycleScope.launch(Dispatchers.IO) {
             try {
                 val bitmap = withContext(Dispatchers.IO) {
-                    java.net.URL(plant.imageUrl).openStream().use {
+                    java.net.URL(url).openStream().use {
                         android.graphics.BitmapFactory.decodeStream(it)
                     }
                 }
@@ -206,12 +235,10 @@ class AddPlantFragment : Fragment() {
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
-                    showSnackbar("Failed to load image")
+                    showSnackbar("Failed to load image: ${e.message}")
                 }
             }
         }
-
-        binding.buttonSave.text = "Update Plant"
     }
 
     private fun getFrequencyPeriodIndex(frequencyPeriod: String): Int {
@@ -301,12 +328,34 @@ class AddPlantFragment : Fragment() {
         )
     }
 
+    private suspend fun refreshTokenIfNeeded() {
+        val user = auth.currentUser
+        if (user != null) {
+            try {
+                user.getIdToken(true).await()
+                Log.d("AddPlantFragment", "Token refreshed successfully")
+            } catch (e: Exception) {
+                Log.e("AddPlantFragment", "Error refreshing token: ${e.message}")
+                throw e
+            }
+        } else {
+            Log.e("AddPlantFragment", "No user logged in")
+            throw IllegalStateException("No user logged in")
+        }
+    }
+
     private fun savePlant() {
         val plantName = binding.editTextPlantName.text.toString()
         val wateringFrequency = binding.numberPickerFrequency.value
         val frequencyPeriod = binding.spinnerFrequency.selectedItem.toString()
         val notes = binding.editTextNotes.text.toString()
         val tags = binding.editTextTags.text.toString().split(",").map { it.trim() }
+        val currentUser = auth.currentUser
+        if (currentUser == null) {
+            showSnackbar("User not authenticated. Please log in again.")
+            findNavController().navigate(R.id.loginFragment)
+            return
+        }
 
         if (plantName.isBlank()) {
             showSnackbar("Please enter a plant name")
@@ -315,22 +364,35 @@ class AddPlantFragment : Fragment() {
 
         lifecycleScope.launch {
             try {
+                // Refresh the token before performing the operation
+                refreshTokenIfNeeded()
+
+                val currentUser = auth.currentUser
+                if (currentUser == null) {
+                    showSnackbar("User not authenticated. Please log in again.")
+                    // Navigate to login screen or handle re-authentication
+                    return@launch
+                }
+
                 val plant = hashMapOf(
                     "name" to plantName,
                     "wateringFrequency" to wateringFrequency,
                     "frequencyPeriod" to frequencyPeriod,
                     "notes" to notes,
                     "tags" to tags,
-                    "creatorId" to auth.currentUser?.uid,
+                    "creatorId" to currentUser.uid,
                     "environmentId" to (environmentId ?: "")
                 )
 
                 val documentId = plantId ?: db.collection("plants").document().id
 
-                photoUri?.let { uri ->
-                    val imageUrl = uploadImage(documentId, uri)
-                    plant["imageUrl"] = imageUrl
+                // If a new photo was taken, upload it. Otherwise, use the existing imageUrl
+                val finalImageUrl = if (photoUri != null) {
+                    uploadImage(documentId, photoUri!!)
+                } else {
+                    imageUrl ?: ""
                 }
+                plant["imageUrl"] = finalImageUrl
 
                 withContext(Dispatchers.IO) {
                     db.collection("plants").document(documentId).set(plant).await()
@@ -339,10 +401,15 @@ class AddPlantFragment : Fragment() {
                 showSnackbar("Plant saved successfully")
                 findNavController().popBackStack()
             } catch (e: Exception) {
-                showSnackbar("Error saving plant: ${e.message}")
+                when (e) {
+                    is IllegalStateException -> showSnackbar("User not logged in. Please log in and try again.")
+                    else -> showSnackbar("Error saving plant: ${e.message}")
+                }
+                Log.e("AddPlantFragment", "Error saving plant", e)
             }
         }
     }
+
 
     private suspend fun uploadImage(plantId: String, imageUri: Uri): String {
         return withContext(Dispatchers.IO) {
