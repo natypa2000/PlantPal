@@ -1,6 +1,7 @@
 package com.example.plantpal
 
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -8,19 +9,19 @@ import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.navigation.fragment.findNavController
 import com.example.plantpal.databinding.FragmentRegisterBinding
+import com.google.android.material.snackbar.Snackbar
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.UserProfileChangeRequest
+import com.google.firebase.firestore.FirebaseFirestore
 
 class RegisterFragment : Fragment() {
 
     private var _binding: FragmentRegisterBinding? = null
     private val binding get() = _binding!!
     private lateinit var auth: FirebaseAuth
+    private lateinit var firestore: FirebaseFirestore
 
-    override fun onCreateView(
-        inflater: LayoutInflater, container: ViewGroup?,
-        savedInstanceState: Bundle?
-    ): View {
+    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         _binding = FragmentRegisterBinding.inflate(inflater, container, false)
         return binding.root
     }
@@ -29,7 +30,7 @@ class RegisterFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
 
         auth = FirebaseAuth.getInstance()
-
+        firestore = FirebaseFirestore.getInstance()
         binding.registerButton.setOnClickListener {
             val email = binding.emailEditText.text.toString().trim()
             val username = binding.usernameEditText.text.toString().trim()
@@ -69,23 +70,60 @@ class RegisterFragment : Fragment() {
             .addOnCompleteListener { task ->
                 if (task.isSuccessful) {
                     val user = auth.currentUser
-                    val profileUpdates = UserProfileChangeRequest.Builder()
-                        .setDisplayName(username)
-                        .build()
+                    if (user != null) {
+                        val uid = user.uid
 
-                    user?.updateProfile(profileUpdates)?.addOnCompleteListener { profileTask ->
-                        if (profileTask.isSuccessful) {
-                            showSuccessMessageAndRedirect()
-                        } else {
-                            Toast.makeText(context, "Error updating profile: ${profileTask.exception?.message}", Toast.LENGTH_SHORT).show()
-                        }
+                        // Create user document
+                        val userDoc = hashMapOf(
+                            "username" to username,
+                            "email" to email
+                        )
+                        firestore.collection("users").document(uid).set(userDoc)
+
+                        // Create username document
+                        val usernameDoc = hashMapOf(
+                            "uid" to uid,
+                            "email" to email
+                        )
+                        firestore.collection("usernames").document(username.lowercase()).set(usernameDoc)
+
+                        // Update display name in Firebase Auth
+                        val profileUpdates = UserProfileChangeRequest.Builder()
+                            .setDisplayName(username)
+                            .build()
+                        user.updateProfile(profileUpdates)
+
+                        showSuccessMessageAndRedirect()
                     }
                 } else {
-                    Toast.makeText(context, "Registration failed: ${task.exception?.message}", Toast.LENGTH_SHORT).show()
+                    showSnackbar("Registration failed: ${task.exception?.message}")
                 }
             }
     }
 
+    private fun saveUsernameEmailMapping(username: String, email: String) {
+        Log.d("RegisterFragment", "Saving username-email mapping: $username - $email")
+        val usernameDoc = hashMapOf(
+            "email" to email,
+            "username" to username
+        )
+
+        firestore.collection("usernames")
+            .document(username.lowercase())
+            .set(usernameDoc)
+            .addOnSuccessListener {
+                Log.d("RegisterFragment", "Username-email mapping saved successfully")
+                showSuccessMessageAndRedirect()
+            }
+            .addOnFailureListener { e ->
+                Log.e("RegisterFragment", "Error saving username-email mapping", e)
+                showSnackbar("Error saving username: ${e.message}")
+            }
+    }
+
+    private fun showSnackbar(message: String) {
+        Snackbar.make(requireView(), message, Snackbar.LENGTH_LONG).show()
+    }
     private fun showSuccessMessageAndRedirect() {
         Toast.makeText(context, "Registration successful", Toast.LENGTH_SHORT).show()
         // Sign out the user since we want them to log in manually

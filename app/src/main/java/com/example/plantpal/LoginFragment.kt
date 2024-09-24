@@ -1,6 +1,9 @@
 package com.example.plantpal
 
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -16,10 +19,7 @@ class LoginFragment : Fragment() {
     private val binding get() = _binding!!
     private lateinit var auth: FirebaseAuth
 
-    override fun onCreateView(
-        inflater: LayoutInflater, container: ViewGroup?,
-        savedInstanceState: Bundle?
-    ): View {
+    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         _binding = FragmentLoginBinding.inflate(inflater, container, false)
         return binding.root
     }
@@ -34,22 +34,46 @@ class LoginFragment : Fragment() {
             val password = binding.passwordEditText.text.toString()
 
             if (email.isNotEmpty() && password.isNotEmpty()) {
-                auth.signInWithEmailAndPassword(email, password)
-                    .addOnCompleteListener { task ->
-                        if (task.isSuccessful) {
-                            findNavController().navigate(R.id.action_loginFragment_to_homeFragment)
-                        } else {
-                            Toast.makeText(context, "Login failed: ${task.exception?.message}", Toast.LENGTH_SHORT).show()
-                        }
-                    }
+                loginUser(email, password)
             } else {
-                Toast.makeText(context, "Please enter email and password", Toast.LENGTH_SHORT).show()
+                showToast("Please enter email and password")
             }
         }
 
         binding.registerButton.setOnClickListener {
             findNavController().navigate(R.id.action_loginFragment_to_registerFragment)
         }
+    }
+
+    private fun loginUser(email: String, password: String) {
+        auth.signInWithEmailAndPassword(email, password)
+            .addOnCompleteListener { task ->
+                if (task.isSuccessful) {
+                    Log.d("LoginFragment", "Login successful for user: ${auth.currentUser?.uid}")
+                    // Wait for a short time to ensure Firebase Auth state is updated
+                    Handler(Looper.getMainLooper()).postDelayed({
+                        checkUserAndNavigate()
+                    }, 500) // 500ms delay
+                } else {
+                    Log.e("LoginFragment", "Login failed", task.exception)
+                    showToast("Login failed: ${task.exception?.message}")
+                }
+            }
+    }
+
+    private fun checkUserAndNavigate() {
+        val user = auth.currentUser
+        if (user != null) {
+            Log.d("LoginFragment", "User authenticated, navigating to home")
+            findNavController().navigate(R.id.action_loginFragment_to_homeFragment)
+        } else {
+            Log.e("LoginFragment", "User is null after successful login")
+            showToast("Error: Unable to authenticate. Please try again.")
+        }
+    }
+
+    private fun showToast(message: String) {
+        Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
     }
 
     override fun onDestroyView() {
