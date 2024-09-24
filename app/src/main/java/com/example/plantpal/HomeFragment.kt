@@ -5,6 +5,7 @@ import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.ArrayAdapter
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
@@ -21,6 +22,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
+import android.widget.AdapterView
+
+
 
 class HomeFragment : Fragment() {
 
@@ -32,6 +36,10 @@ class HomeFragment : Fragment() {
     private lateinit var plantAdapter: PlantAdapter
     private var currentEnvironmentId: String? = null
     private var plantsListener: ListenerRegistration? = null
+    private var environments: List<Environment> = listOf()
+    private lateinit var environmentAdapter: ArrayAdapter<String>
+
+    data class Environment(val id: String, val name: String)
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         _binding = FragmentHomeBinding.inflate(inflater, container, false)
@@ -71,25 +79,91 @@ class HomeFragment : Fragment() {
         binding.addPlantFab.setOnClickListener {
             addNewPlant()
         }
+        setupEnvironmentSpinner()
+        loadEnvironments()
+    }
+    private fun setupEnvironmentSpinner() {
+        environmentAdapter = ArrayAdapter(requireContext(), android.R.layout.simple_spinner_item, mutableListOf())
+        environmentAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        binding.environmentSpinner.adapter = environmentAdapter
+
+        binding.environmentSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>, view: View, position: Int, id: Long) {
+                val selectedEnvironment = environments[position]
+                loadPlants(selectedEnvironment.id)
+            }
+
+            override fun onNothingSelected(parent: AdapterView<*>) {}
+        }
+    }
+
+    // Add this new method
+
+    private fun loadEnvironments() {
+        Log.d("HomeFragment", "Loading environments")
+        val currentUserId = auth.currentUser?.uid ?: return
+
+        firestore.collection("environments")
+            .get()
+            .addOnSuccessListener { allDocs ->
+                Log.d("HomeFragment", "Total environments: ${allDocs.size()}")
+                val userEnvironments = allDocs.mapNotNull { doc ->
+                    val creatorId = doc.getString("creatorId")
+                    val users = doc.get("users") as? Map<String, Any>
+                    when {
+                        creatorId == currentUserId -> {
+                            Log.d("HomeFragment", "Found creator environment: ${doc.id}")
+                            Environment(doc.id, doc.getString("name") ?: "Unnamed")
+                        }
+                        users?.containsKey(currentUserId) == true -> {
+                            Log.d("HomeFragment", "Found viewer environment: ${doc.id}")
+                            Environment(doc.id, doc.getString("name") ?: "Unnamed")
+                        }
+                        else -> null
+                    }
+                }
+
+                environments = userEnvironments.distinctBy { it.id }
+                Log.d("HomeFragment", "User's environments: ${environments.size}")
+                updateEnvironmentSpinner()
+
+                if (environments.isNotEmpty()) {
+                    updateUIForExistingEnvironment()
+                    loadPlants(environments.first().id)
+                } else {
+                    updateUIForNoEnvironment()
+                }
+            }
+            .addOnFailureListener { e ->
+                Log.e("HomeFragment", "Error loading environments", e)
+                showSnackbar("Error loading environments: ${e.message}")
+            }
+    }
+
+    // Add this new method
+    private fun updateEnvironmentSpinner() {
+        Log.d("HomeFragment", "Updating environment spinner")
+        environmentAdapter.clear()
+        environmentAdapter.addAll(environments.map { it.name })
+        environmentAdapter.notifyDataSetChanged()
+
+        if (environments.isNotEmpty()) {
+            binding.environmentSpinner.setSelection(0)
+        }
     }
 
     private fun checkAuthenticationAndLoadData() {
-        lifecycleScope.launch {
-            try {
-                refreshTokenIfNeeded()
-                checkForEnvironment()
-            } catch (e: Exception) {
-                when (e) {
-                    is IllegalStateException -> {
-                        showSnackbar("User not logged in. Please log in and try again.")
-                        // Navigate to login screen
-                    }
-                    else -> showSnackbar("Error: ${e.message}")
-                }
-                Log.e("HomeFragment", "Error in checkAuthenticationAndLoadData", e)
-            }
+        Log.d("HomeFragment", "Checking authentication and loading data")
+        auth.currentUser?.let { user ->
+            Log.d("HomeFragment", "User authenticated: ${user.uid}")
+            loadEnvironments()
+        } ?: run {
+            Log.d("HomeFragment", "User not authenticated")
+            updateUIForNoEnvironment()
+            showSnackbar("User not authenticated")
         }
     }
+
 
     private fun setupRecyclerView() {
         plantAdapter = PlantAdapter(
@@ -112,14 +186,10 @@ class HomeFragment : Fragment() {
                     .get()
                     .await()
 
-                if (environmentQuery.documents.isNotEmpty()) {
-                    currentEnvironmentId = environmentQuery.documents[0].id
-                    withContext(Dispatchers.Main) {
-                        updateUIForExistingEnvironment()
-                        loadPlants()
-                    }
-                } else {
-                    withContext(Dispatchers.Main) {
+                withContext(Dispatchers.Main) {
+                    if (environmentQuery.documents.isNotEmpty()) {
+                        loadEnvironments()
+                    } else {
                         updateUIForNoEnvironment()
                     }
                 }
@@ -131,19 +201,24 @@ class HomeFragment : Fragment() {
         }
     }
 
+
     private fun updateUIForExistingEnvironment() {
+        Log.d("HomeFragment", "Updating UI for existing environment")
         binding.addEnvironmentFab.visibility = View.GONE
         binding.addPlantFab.visibility = View.VISIBLE
-        saveCurrentEnvironmentId()
+        binding.environmentSpinner.visibility = View.VISIBLE
+        binding.emptyStateText.visibility = View.GONE
+        binding.plantList.visibility = View.VISIBLE
     }
 
     private fun updateUIForNoEnvironment() {
+        Log.d("HomeFragment", "Updating UI for no environment")
         binding.addEnvironmentFab.visibility = View.VISIBLE
         binding.addPlantFab.visibility = View.GONE
+        binding.environmentSpinner.visibility = View.GONE
         binding.emptyStateText.visibility = View.VISIBLE
         binding.emptyStateText.text = "Create an environment to start adding plants"
         binding.plantList.visibility = View.GONE
-        saveCurrentEnvironmentId()
     }
 
     private fun saveCurrentEnvironmentId() {
@@ -185,11 +260,9 @@ class HomeFragment : Fragment() {
             try {
                 refreshTokenIfNeeded()
                 val documentRef = firestore.collection("environments").add(environment).await()
-                currentEnvironmentId = documentRef.id
                 withContext(Dispatchers.Main) {
-                    updateUIForExistingEnvironment()
                     showSnackbar("Environment created successfully")
-                    loadPlants()
+                    loadEnvironments()
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
@@ -199,32 +272,28 @@ class HomeFragment : Fragment() {
         }
     }
 
-    private fun loadPlants() {
-        val currentUserId = auth.currentUser?.uid
-        if (currentUserId == null) {
-            showSnackbar("User not authenticated")
-            return
-        }
+    private fun loadPlants(environmentId: String) {
+        Log.d("HomeFragment", "Loading plants for environment: $environmentId")
+        currentEnvironmentId = environmentId
 
-        currentEnvironmentId?.let { envId ->
-            plantsListener?.remove()
-            plantsListener = firestore.collection("plants")
-                .whereEqualTo("environmentId", envId)
-                .addSnapshotListener { snapshot, e ->
-                    if (e != null) {
-                        showSnackbar("Error loading plants: ${e.message}")
-                        return@addSnapshotListener
-                    }
-                    val plants = snapshot?.documents?.mapNotNull { doc ->
-                        doc.toObject(Plant::class.java)?.apply { id = doc.id }
-                    } ?: emptyList()
-                    plantAdapter.updatePlants(plants)
-                    updateEmptyState(plants.isEmpty())
+        plantsListener?.remove()
+        plantsListener = firestore.collection("plants")
+            .whereEqualTo("environmentId", environmentId)
+            .addSnapshotListener { snapshot, e ->
+                if (e != null) {
+                    Log.e("HomeFragment", "Error loading plants", e)
+                    showSnackbar("Error loading plants: ${e.message}")
+                    return@addSnapshotListener
                 }
-        } ?: run {
-            showSnackbar("No environment selected")
-        }
+                val plants = snapshot?.documents?.mapNotNull { doc ->
+                    doc.toObject(Plant::class.java)?.apply { id = doc.id }
+                } ?: emptyList()
+                Log.d("HomeFragment", "Loaded ${plants.size} plants")
+                plantAdapter.updatePlants(plants)
+                updateEmptyState(plants.isEmpty())
+            }
     }
+
 
     private fun updateEmptyState(isEmpty: Boolean) {
         _binding?.let { binding ->
