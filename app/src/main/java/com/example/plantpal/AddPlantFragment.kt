@@ -59,6 +59,8 @@ class AddPlantFragment : Fragment() {
     private val args: AddPlantFragmentArgs by navArgs()
 
     private var userRole: String = ""
+    private lateinit var loadingSpinner: LoadingSpinner
+
 
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -110,6 +112,7 @@ class AddPlantFragment : Fragment() {
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         _binding = FragmentAddPlantBinding.inflate(inflater, container, false)
+        loadingSpinner = LoadingSpinner(requireContext())
         return binding.root
     }
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
@@ -390,6 +393,7 @@ class AddPlantFragment : Fragment() {
 
         Log.d("AddPlantFragment", "Saving plant with environment ID: $environmentId")
 
+        loadingSpinner.show()
         lifecycleScope.launch {
             try {
                 refreshTokenIfNeeded()
@@ -418,15 +422,22 @@ class AddPlantFragment : Fragment() {
                 withContext(Dispatchers.IO) {
                     db.collection("plants").document(documentId).set(plant).await()
                 }
-
-                showSnackbar("Plant saved successfully")
-                findNavController().popBackStack()
-            } catch (e: Exception) {
-                when (e) {
-                    is IllegalStateException -> showSnackbar("User not logged in. Please log in and try again.")
-                    else -> showSnackbar("Error saving plant: ${e.message}")
+                withContext(Dispatchers.Main) {
+                    loadingSpinner.dismiss()
+                    showSnackbar("Plant saved successfully")
+                    findNavController().popBackStack()
                 }
-                Log.e("AddPlantFragment", "Error saving plant", e)
+                //showSnackbar("Plant saved successfully")
+                //findNavController().popBackStack()
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    loadingSpinner.dismiss()
+                    when (e) {
+                        is IllegalStateException -> showSnackbar("User not logged in. Please log in and try again.")
+                        else -> showSnackbar("Error saving plant: ${e.message}")
+                    }
+                    Log.e("AddPlantFragment", "Error saving plant", e)
+                }
             }
         }
     }

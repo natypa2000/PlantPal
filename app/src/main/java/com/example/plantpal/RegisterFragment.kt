@@ -20,9 +20,12 @@ class RegisterFragment : Fragment() {
     private val binding get() = _binding!!
     private lateinit var auth: FirebaseAuth
     private lateinit var firestore: FirebaseFirestore
+    private lateinit var loadingSpinner: LoadingSpinner
+
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         _binding = FragmentRegisterBinding.inflate(inflater, container, false)
+        loadingSpinner = LoadingSpinner(requireContext())
         return binding.root
     }
 
@@ -66,9 +69,11 @@ class RegisterFragment : Fragment() {
     }
 
     private fun registerUser(email: String, username: String, password: String) {
+        loadingSpinner.show()
         auth.createUserWithEmailAndPassword(email, password)
             .addOnCompleteListener { task ->
                 if (task.isSuccessful) {
+                    loadingSpinner.dismiss()
                     val user = auth.currentUser
                     if (user != null) {
                         val uid = user.uid
