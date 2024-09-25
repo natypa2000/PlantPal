@@ -9,6 +9,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ArrayAdapter
+import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.CameraSelector
@@ -119,7 +120,7 @@ class AddPlantFragment : Fragment() {
 
         setupUI()
         setupListeners()
-
+        setUsername()
         if (plantId != null) {
             loadPlantData(plantId!!)
         }
@@ -351,6 +352,14 @@ class AddPlantFragment : Fragment() {
         } else {
             Log.e("AddPlantFragment", "No user logged in")
             throw IllegalStateException("No user logged in")
+        }
+    }
+
+    private fun setUsername() {
+        val currentUser = FirebaseAuth.getInstance().currentUser
+        currentUser?.let { user ->
+            val displayName = user.displayName ?: "User"
+            view?.findViewById<TextView>(R.id.textViewUsername)?.text = "Hello $displayName"
         }
     }
 

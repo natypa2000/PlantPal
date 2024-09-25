@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="NumberPickerTheme" parent="Theme.AppCompat.Light">
+        <item name="colorControlNormal">#4CAF50</item>
+        <item name="android:textColorPrimary">#4CAF50</item>
+    </style>
+
+    <style name="CalendarViewTheme" parent="ThemeOverlay.MaterialComponents.MaterialCalendar">
+        <item name="colorAccent">#4CAF50</item>
+        <item name="colorOnPrimary">#4CAF50</item>
+        <item name="colorSurface">#E8F5E9</item>
+    </style>
+</resources>

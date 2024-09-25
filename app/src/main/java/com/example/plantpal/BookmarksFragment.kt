@@ -6,6 +6,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
+import android.widget.TextView
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.plantpal.databinding.FragmentBookmarksBinding
@@ -30,13 +31,14 @@ class BookmarksFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         firestore = FirebaseFirestore.getInstance()
+        setUsername()
         setupRecyclerView()
         setupTagFilter()
         loadPlants()
     }
 
     private fun setupRecyclerView() {
-        plantAdapter = PlantAdapter(emptyList(), {}, {})
+        plantAdapter = PlantAdapter(emptyList(), {}, {},{})
         binding.recyclerViewBookmarkedPlants.apply {
             layoutManager = LinearLayoutManager(context)
             adapter = plantAdapter
@@ -90,6 +92,14 @@ class BookmarksFragment : Fragment() {
         }
         plantAdapter.updatePlants(filteredPlants)
         updateEmptyState()
+    }
+
+    private fun setUsername() {
+        val currentUser = FirebaseAuth.getInstance().currentUser
+        currentUser?.let { user ->
+            val displayName = user.displayName ?: "User"
+            view?.findViewById<TextView>(R.id.textViewUsername)?.text = "Hello $displayName"
+        }
     }
 
     private fun updateEmptyState() {

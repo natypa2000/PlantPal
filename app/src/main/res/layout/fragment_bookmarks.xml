@@ -5,25 +5,29 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:background="#F0F4F0"
     tools:context=".BookmarksFragment">
 
-    <TextView
-        android:id="@+id/textViewBookmarksTitle"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Bookmarks"
-        android:textSize="24sp"
-        android:textStyle="bold"
-        android:layout_margin="16dp"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintStart_toStartOf="parent" />
+    <androidx.appcompat.widget.Toolbar
+        android:id="@+id/bookmarksToolbar"
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"
+        android:background="#F0F4F0"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <include
+            android:id="@+id/toolbar"
+            layout="@layout/layout_toolbar" />
+
+
+    </androidx.appcompat.widget.Toolbar>
 
     <FrameLayout
         android:id="@+id/spinnerContainer"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_margin="16dp"
-        app:layout_constraintTop_toBottomOf="@id/textViewBookmarksTitle"
+        app:layout_constraintTop_toBottomOf="@id/bookmarksToolbar"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
 
@@ -31,7 +35,7 @@
             android:id="@+id/spinnerTagFilter"
             android:layout_width="match_parent"
             android:layout_height="48dp"
-            android:background="@android:drawable/btn_dropdown"
+            android:background="@drawable/spinner_background"
             android:spinnerMode="dropdown"/>
 
     </FrameLayout>
@@ -51,6 +55,8 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="No bookmarked plants found"
+        android:textColor="#4CAF50"
+        android:textSize="16sp"
         android:visibility="gone"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintBottom_toBottomOf="parent"

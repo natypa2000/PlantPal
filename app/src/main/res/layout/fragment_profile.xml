@@ -3,13 +3,17 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#E8F5E9">
+    android:background="#F0F4F0">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
         android:padding="16dp">
+
+        <include
+            android:id="@+id/toolbar"
+            layout="@layout/layout_toolbar" />
 
         <Button
             android:id="@+id/logoutButton"
@@ -47,7 +51,9 @@
             android:hint="Name"
             android:layout_marginTop="16dp"
             app:endIconMode="custom"
-            app:endIconDrawable="@drawable/ic_edit">
+            app:endIconDrawable="@drawable/ic_edit"
+            app:boxStrokeColor="#4CAF50"
+            app:hintTextColor="#4CAF50">
 
             <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/nameEditText"
@@ -66,7 +72,9 @@
             app:endIconMode="custom"
             app:endIconDrawable="@drawable/ic_edit"
             app:passwordToggleEnabled="true"
-            app:helperText="Password must be at least 6 characters">
+            app:helperText="Password must be at least 6 characters"
+            app:boxStrokeColor="#4CAF50"
+            app:hintTextColor="#4CAF50">
 
             <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/passwordEditText"
@@ -83,7 +91,9 @@
             android:hint="House Name"
             android:layout_marginTop="16dp"
             app:endIconMode="custom"
-            app:endIconDrawable="@drawable/ic_edit">
+            app:endIconDrawable="@drawable/ic_edit"
+            app:boxStrokeColor="#4CAF50"
+            app:hintTextColor="#4CAF50">
 
             <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/environmentNameEditText"
@@ -107,7 +117,7 @@
             android:layout_marginTop="24dp"
             app:cardCornerRadius="8dp"
             app:cardElevation="4dp"
-            app:cardBackgroundColor="#C8E6C9">
+            app:cardBackgroundColor="#E8F5E9">
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -118,16 +128,16 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="House Management Permissions"
+                    android:text="House Management"
                     android:textStyle="bold"
                     android:textSize="18sp"
-                    android:textColor="#1B5E20"/>
+                    android:textColor="#4CAF50"/>
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Viewers"
-                    android:textColor="#1B5E20"
+                    android:text="Partners"
+                    android:textColor="#4CAF50"
                     android:layout_marginTop="16dp"/>
 
                 <androidx.recyclerview.widget.RecyclerView
@@ -137,26 +147,13 @@
                     android:layout_marginTop="8dp"/>
 
                 <Button
-                    android:id="@+id/addViewerButton"
+                    android:id="@+id/addPartnerButton"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="+ Add Viewer"
+                    android:text="+ Add Partner"
                     android:layout_gravity="end"
                     android:layout_marginTop="8dp"
                     android:backgroundTint="#4CAF50"/>
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Permission requests"
-                    android:textColor="#1B5E20"
-                    android:layout_marginTop="16dp"/>
-
-                <androidx.recyclerview.widget.RecyclerView
-                    android:id="@+id/permissionRequestsRecyclerView"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"/>
 
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
