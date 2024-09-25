@@ -12,15 +12,20 @@ import androidx.fragment.app.Fragment
 import androidx.navigation.fragment.findNavController
 import com.example.plantpal.databinding.FragmentLoginBinding
 import com.google.firebase.auth.FirebaseAuth
+import com.example.plantpal.LoadingSpinner
+
 
 class LoginFragment : Fragment() {
 
     private var _binding: FragmentLoginBinding? = null
     private val binding get() = _binding!!
     private lateinit var auth: FirebaseAuth
+    private lateinit var loadingSpinner: LoadingSpinner
+
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         _binding = FragmentLoginBinding.inflate(inflater, container, false)
+        loadingSpinner = LoadingSpinner(requireContext())
         return binding.root
     }
 
@@ -46,8 +51,10 @@ class LoginFragment : Fragment() {
     }
 
     private fun loginUser(email: String, password: String) {
+        loadingSpinner.show()
         auth.signInWithEmailAndPassword(email, password)
             .addOnCompleteListener { task ->
+                loadingSpinner.dismiss()
                 if (task.isSuccessful) {
                     Log.d("LoginFragment", "Login successful for user: ${auth.currentUser?.uid}")
                     // Wait for a short time to ensure Firebase Auth state is updated
