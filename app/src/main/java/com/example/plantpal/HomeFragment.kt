@@ -90,6 +90,7 @@ class HomeFragment : Fragment() {
         binding.environmentSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(parent: AdapterView<*>, view: View, position: Int, id: Long) {
                 val selectedEnvironment = environments[position]
+                currentEnvironmentId = selectedEnvironment.id  // Update currentEnvironmentId when selection changes
                 loadPlants(selectedEnvironment.id)
             }
 
@@ -129,7 +130,8 @@ class HomeFragment : Fragment() {
 
                 if (environments.isNotEmpty()) {
                     updateUIForExistingEnvironment()
-                    loadPlants(environments.first().id)
+                    currentEnvironmentId = environments.first().id  // Set currentEnvironmentId to the first environment
+                    loadPlants(currentEnvironmentId!!)
                 } else {
                     updateUIForNoEnvironment()
                 }
@@ -149,6 +151,9 @@ class HomeFragment : Fragment() {
 
         if (environments.isNotEmpty()) {
             binding.environmentSpinner.setSelection(0)
+            currentEnvironmentId = environments.first().id
+            Log.d("HomeFragment", "Set current environment ID to: $currentEnvironmentId")
+            saveCurrentEnvironmentId()
         }
     }
 
@@ -227,6 +232,7 @@ class HomeFragment : Fragment() {
             putString("current_environment_id", currentEnvironmentId)
             apply()
         }
+        Log.d("HomeFragment", "Saved current environment ID to SharedPreferences: $currentEnvironmentId")
     }
 
     private fun showCreateEnvironmentDialog() {
@@ -358,13 +364,18 @@ class HomeFragment : Fragment() {
 
     private fun addNewPlant() {
         currentEnvironmentId?.let { envId ->
+            Log.d("HomeFragment", "Adding new plant. Current environment ID: $envId")
             val action = HomeFragmentDirections.actionHomeFragmentToAddPlantFragment(
                 plantId = null,
                 environmentId = envId
             )
             findNavController().navigate(action)
-        } ?: showSnackbar("Please create an environment first")
+        } ?: run {
+            Log.e("HomeFragment", "Attempted to add plant without a selected environment")
+            showSnackbar("Please select an environment first")
+        }
     }
+
 
     private fun showSnackbar(message: String) {
         view?.let {
