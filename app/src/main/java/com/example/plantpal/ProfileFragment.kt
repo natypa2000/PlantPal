@@ -9,6 +9,7 @@ import android.view.ViewGroup
 import android.widget.ArrayAdapter
 import android.widget.EditText
 import android.widget.Spinner
+import android.widget.TextView
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.Fragment
@@ -38,7 +39,7 @@ class ProfileFragment : Fragment() {
     private lateinit var auth: FirebaseAuth
     private lateinit var firestore: FirebaseFirestore
     private lateinit var storage: FirebaseStorage
-    private lateinit var viewersAdapter: ViewersAdapter
+    private lateinit var partnersAdapter: PartnersAdapter
     private lateinit var permissionRequestsAdapter: PermissionRequestsAdapter
     private var selectedImageUri: Uri? = null
     private var currentEnvironmentId: String? = null
@@ -67,14 +68,15 @@ class ProfileFragment : Fragment() {
         setupRecyclerView()
         setupUI()
         checkUserAuthentication()
+        setUsername()
     }
     private fun setupRecyclerView() {
-        viewersAdapter = ViewersAdapter(
-            onDeleteClick = { userId -> removeUser(userId) },
-            onRoleChange = { userId, newRole -> changeUserRole(userId, newRole) }
+        partnersAdapter = PartnersAdapter( // Changed from viewersAdapter
+            onDeleteClick = { userId -> removeUser(userId) }
+            // Removed onRoleChange as it's no longer needed
         )
-        binding.viewersRecyclerView.apply {
-            adapter = viewersAdapter
+        binding.viewersRecyclerView.apply { // Note: You might want to rename this in your XML as well
+            adapter = partnersAdapter // Changed from viewersAdapter
             layoutManager = LinearLayoutManager(context)
         }
     }
@@ -91,10 +93,17 @@ class ProfileFragment : Fragment() {
         }
     }
 
+    private fun setUsername() {
+        val currentUser = FirebaseAuth.getInstance().currentUser
+        currentUser?.let { user ->
+            val displayName = user.displayName ?: "User"
+            view?.findViewById<TextView>(R.id.textViewUsername)?.text = "Hello $displayName"
+        }
+    }
 
     private fun setupUI() {
-        binding.addViewerButton.setOnClickListener {
-            showAddViewerDialog()
+        binding.addPartnerButton.setOnClickListener {
+            showAddPartnerDialog()
         }
 
         binding.saveButton.setOnClickListener {
@@ -116,19 +125,17 @@ class ProfileFragment : Fragment() {
     }
 
     private fun setupRecyclerViews() {
-        viewersAdapter = ViewersAdapter(
-            onDeleteClick = { userId -> removeUser(userId) },
-            onRoleChange = { userId, newRole -> changeUserRole(userId, newRole) }
+        partnersAdapter = PartnersAdapter( // Changed from viewersAdapter
+            onDeleteClick = { userId -> removeUser(userId) }
+            // Removed onRoleChange as it's no longer needed
         )
-        binding.viewersRecyclerView.adapter = viewersAdapter
+        binding.viewersRecyclerView.adapter = partnersAdapter // Changed from viewersAdapter
         binding.viewersRecyclerView.layoutManager = LinearLayoutManager(context)
 
         permissionRequestsAdapter = PermissionRequestsAdapter(
             onAccept = { requestId -> acceptPermissionRequest(requestId) },
             onReject = { requestId -> rejectPermissionRequest(requestId) }
         )
-        binding.permissionRequestsRecyclerView.adapter = permissionRequestsAdapter
-        binding.permissionRequestsRecyclerView.layoutManager = LinearLayoutManager(context)
     }
 
     private fun loadUserData() {
@@ -182,7 +189,7 @@ class ProfileFragment : Fragment() {
                                     loadedUsers++
 
                                     if (loadedUsers == users.size - 1) {  // -1 to account for creator
-                                        viewersAdapter.submitList(usersList)
+                                        partnersAdapter.submitList(usersList) // Changed from viewersAdapter
                                     }
                                 }
                                 .addOnFailureListener { e ->
@@ -191,7 +198,7 @@ class ProfileFragment : Fragment() {
                         }
                     }
                 } else {
-                    viewersAdapter.submitList(emptyList())
+                    partnersAdapter.submitList(emptyList()) // Changed from viewersAdapter
                 }
             }
             .addOnFailureListener { e ->
@@ -225,9 +232,7 @@ class ProfileFragment : Fragment() {
             findNavController().navigate(R.id.action_profileFragment_to_loginFragment)
         }
 
-        binding.addViewerButton.setOnClickListener {
-            showAddViewerDialog()
-        }
+
     }
 
     private fun toggleEditMode(editText: EditText) {
@@ -365,29 +370,22 @@ class ProfileFragment : Fragment() {
             }
     }
 
-    private fun showAddViewerDialog() {
-        val dialogView = layoutInflater.inflate(R.layout.dialog_add_viewer, null)
+    private fun showAddPartnerDialog() {
+        val dialogView = layoutInflater.inflate(R.layout.dialog_add_partner, null)
         val usernameEditText = dialogView.findViewById<EditText>(R.id.usernameEditText)
-        val roleSpinner = dialogView.findViewById<Spinner>(R.id.roleSpinner)
-
-        val roles = arrayOf("viewer", "editor")
-        val adapter = ArrayAdapter(requireContext(), android.R.layout.simple_spinner_item, roles)
-        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
-        roleSpinner.adapter = adapter
 
         AlertDialog.Builder(requireContext())
-            .setTitle("Add User")
+            .setTitle("Add Partner")
             .setView(dialogView)
             .setPositiveButton("Add") { _, _ ->
                 val username = usernameEditText.text.toString()
-                val role = roleSpinner.selectedItem.toString()
-                addViewer(username, role)
+                addPartner(username)
             }
             .setNegativeButton("Cancel", null)
             .show()
     }
 
-    private fun addViewer(username: String, role: String) {
+    private fun addPartner(username: String) {
         if (username.isBlank()) {
             showSnackbar("Please enter a valid username")
             return
@@ -400,7 +398,7 @@ class ProfileFragment : Fragment() {
                 if (document.exists()) {
                     val uid = document.getString("uid")
                     if (uid != null) {
-                        addUserToEnvironment(uid, role)
+                        addUserToEnvironment(uid)
                     } else {
                         showSnackbar("Error: User ID not found")
                     }
@@ -413,7 +411,7 @@ class ProfileFragment : Fragment() {
             }
     }
 
-    private fun addUserToEnvironment(uid: String, role: String) {
+    private fun addUserToEnvironment(uid: String) {
         currentEnvironmentId?.let { envId ->
             firestore.collection("environments").document(envId)
                 .get()
@@ -422,7 +420,7 @@ class ProfileFragment : Fragment() {
                     val creatorId = environmentDoc.getString("creatorId")
 
                     if (uid == creatorId) {
-                        showSnackbar("Cannot add creator as viewer")
+                        showSnackbar("Cannot add creator as partner")
                         return@addOnSuccessListener
                     }
 
@@ -431,14 +429,14 @@ class ProfileFragment : Fragment() {
                         return@addOnSuccessListener
                     }
 
-                    users[uid] = role
+                    users[uid] = "partner"
                     environmentDoc.reference.update("users", users)
                         .addOnSuccessListener {
-                            showSnackbar("User added successfully")
+                            showSnackbar("Partner added successfully")
                             loadUsers(envId)
                         }
                         .addOnFailureListener { e ->
-                            showSnackbar("Failed to add user: ${e.message}")
+                            showSnackbar("Failed to add partner: ${e.message}")
                         }
                 }
                 .addOnFailureListener { e ->
@@ -491,7 +489,7 @@ class ProfileFragment : Fragment() {
             .get()
             .addOnSuccessListener { document ->
                 val request = document.toObject(PermissionRequest::class.java) ?: return@addOnSuccessListener
-                addViewer(request.userId, request.requestedRole)
+                addPartner(request.userId)
                 document.reference.update("status", "accepted")
                     .addOnSuccessListener {
                         showSnackbar("Permission request accepted")

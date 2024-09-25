@@ -4,9 +4,11 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.TextView
 import android.widget.Toast
 import androidx.fragment.app.Fragment
 import com.example.plantpal.databinding.FragmentCalendarBinding
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.FirebaseDatabase
@@ -33,7 +35,7 @@ class CalendarFragment : Fragment() {
 
         database = FirebaseDatabase.getInstance()
         val eventsRef = database.getReference("events")
-
+        setUsername()
         binding.calendarView.setOnDateChangeListener { _, year, month, dayOfMonth ->
             val selectedDate = Calendar.getInstance()
             selectedDate.set(year, month, dayOfMonth)
@@ -65,6 +67,14 @@ class CalendarFragment : Fragment() {
                 .addOnFailureListener {
                     Toast.makeText(context, "Failed to add event", Toast.LENGTH_SHORT).show()
                 }
+        }
+    }
+
+    private fun setUsername() {
+        val currentUser = FirebaseAuth.getInstance().currentUser
+        currentUser?.let { user ->
+            val displayName = user.displayName ?: "User"
+            view?.findViewById<TextView>(R.id.textViewUsername)?.text = "Hello $displayName"
         }
     }
 

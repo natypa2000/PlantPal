@@ -4,36 +4,41 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:padding="16dp"
+    android:background="#F0F4F0"
     tools:context=".AddPlantFragment">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical">
+        android:orientation="vertical"
+        android:padding="16dp">
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Add new plant"
-            android:textSize="24sp"
-            android:textStyle="bold"
-            android:layout_marginBottom="16dp"/>
+        <include
+            android:id="@+id/toolbar"
+            layout="@layout/layout_toolbar" />
 
-        <EditText
-            android:id="@+id/editTextPlantName"
+        <com.google.android.material.textfield.TextInputLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="Plant name"
-            android:inputType="text"
-            android:minHeight="48dp"
-            android:layout_marginBottom="16dp"/>
+            android:layout_marginBottom="16dp"
+            app:boxStrokeColor="#4CAF50"
+            app:hintTextColor="#4CAF50">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/editTextPlantName"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="Plant name"
+                android:inputType="text"
+                android:minHeight="48dp"/>
+        </com.google.android.material.textfield.TextInputLayout>
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="The Frequency Of Watering"
             android:textSize="18sp"
+            android:textColor="#4CAF50"
             android:layout_marginBottom="8dp"/>
 
         <LinearLayout
@@ -46,7 +51,8 @@
                 android:id="@+id/numberPickerFrequency"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"/>
+                android:layout_weight="1"
+                android:theme="@style/NumberPickerTheme"/>
 
             <FrameLayout
                 android:layout_width="0dp"
@@ -57,7 +63,7 @@
                     android:id="@+id/spinnerFrequency"
                     android:layout_width="match_parent"
                     android:layout_height="48dp"
-                    android:background="@android:drawable/btn_dropdown"
+                    android:background="@drawable/spinner_background"
                     android:spinnerMode="dropdown"/>
             </FrameLayout>
         </LinearLayout>
@@ -76,7 +82,8 @@
             android:text="Capture Photo"
             android:visibility="gone"
             android:layout_gravity="center_horizontal"
-            android:layout_marginBottom="16dp"/>
+            android:layout_marginBottom="16dp"
+            android:backgroundTint="#4CAF50"/>
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -90,7 +97,8 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:text="Take Photo"
-                android:layout_marginEnd="8dp"/>
+                android:layout_marginEnd="8dp"
+                android:backgroundTint="#4CAF50"/>
 
             <Button
                 android:id="@+id/buttonChoosePhoto"
@@ -98,7 +106,8 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:text="Choose Photo"
-                android:layout_marginStart="8dp"/>
+                android:layout_marginStart="8dp"
+                android:backgroundTint="#4CAF50"/>
         </LinearLayout>
 
         <ImageView
@@ -109,37 +118,53 @@
             android:visibility="gone"
             android:layout_marginBottom="16dp"/>
 
-        <EditText
-            android:id="@+id/editTextNotes"
+        <com.google.android.material.textfield.TextInputLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="Add Notes"
-            android:inputType="textMultiLine"
-            android:lines="3"
-            android:minHeight="48dp"
-            android:layout_marginBottom="16dp"/>
+            android:layout_marginBottom="16dp"
+            app:boxStrokeColor="#4CAF50"
+            app:hintTextColor="#4CAF50">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/editTextNotes"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="Add Notes"
+                android:inputType="textMultiLine"
+                android:lines="3"
+                android:minHeight="48dp"/>
+        </com.google.android.material.textfield.TextInputLayout>
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Create Or Assign Tag"
             android:textSize="18sp"
+            android:textColor="#4CAF50"
             android:layout_marginBottom="8dp"/>
 
-        <EditText
-            android:id="@+id/editTextTags"
+        <com.google.android.material.textfield.TextInputLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="Enter tags (comma-separated)"
-            android:inputType="text"
-            android:minHeight="48dp"
-            android:layout_marginBottom="16dp"/>
+            android:layout_marginBottom="16dp"
+            app:boxStrokeColor="#4CAF50"
+            app:hintTextColor="#4CAF50">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/editTextTags"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="Enter tags (comma-separated)"
+                android:inputType="text"
+                android:minHeight="48dp"/>
+        </com.google.android.material.textfield.TextInputLayout>
 
         <Button
             android:id="@+id/buttonSave"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Save"/>
+            android:text="Save"
+            android:backgroundTint="#4CAF50"/>
 
     </LinearLayout>
 </ScrollView>

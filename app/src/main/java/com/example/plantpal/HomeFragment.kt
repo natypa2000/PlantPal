@@ -1,5 +1,6 @@
 package com.example.plantpal
 
+import android.content.Context
 import android.os.Bundle
 import android.util.Log
 import android.view.LayoutInflater
@@ -23,7 +24,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 import android.widget.AdapterView
-
+import android.widget.ImageView
+import android.widget.TextView
+import com.bumptech.glide.Glide
 
 
 class HomeFragment : Fragment() {
@@ -69,6 +72,8 @@ class HomeFragment : Fragment() {
         firestore = FirebaseFirestore.getInstance()
         storage = FirebaseStorage.getInstance()
 
+        setUsername()
+
         setupRecyclerView()
         checkAuthenticationAndLoadData()
 
@@ -79,8 +84,13 @@ class HomeFragment : Fragment() {
         binding.addPlantFab.setOnClickListener {
             addNewPlant()
         }
+
+        currentEnvironmentId = savedInstanceState?.getString("currentEnvironmentId")
+            ?: activity?.getPreferences(Context.MODE_PRIVATE)?.getString("currentEnvironmentId", null)
         setupEnvironmentSpinner()
         loadEnvironments()
+        checkForSelectedEnvironment()
+
     }
     private fun setupEnvironmentSpinner() {
         environmentAdapter = ArrayAdapter(requireContext(), android.R.layout.simple_spinner_item, mutableListOf())
@@ -90,7 +100,8 @@ class HomeFragment : Fragment() {
         binding.environmentSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(parent: AdapterView<*>, view: View, position: Int, id: Long) {
                 val selectedEnvironment = environments[position]
-                currentEnvironmentId = selectedEnvironment.id  // Update currentEnvironmentId when selection changes
+                currentEnvironmentId = selectedEnvironment.id
+                saveCurrentEnvironmentId()
                 loadPlants(selectedEnvironment.id)
             }
 
@@ -98,7 +109,19 @@ class HomeFragment : Fragment() {
         }
     }
 
-    // Add this new method
+    private fun checkForSelectedEnvironment() {
+        if (currentEnvironmentId == null) {
+            showSnackbar("Please select an environment")
+            binding.addPlantFab.isEnabled = false
+        } else {
+            binding.addPlantFab.isEnabled = true
+        }
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putString("currentEnvironmentId", currentEnvironmentId)
+    }
 
     private fun loadEnvironments() {
         Log.d("HomeFragment", "Loading environments")
@@ -130,7 +153,10 @@ class HomeFragment : Fragment() {
 
                 if (environments.isNotEmpty()) {
                     updateUIForExistingEnvironment()
-                    currentEnvironmentId = environments.first().id  // Set currentEnvironmentId to the first environment
+                    if (currentEnvironmentId == null || !environments.any { it.id == currentEnvironmentId }) {
+                        currentEnvironmentId = environments.first().id
+                    }
+                    selectCurrentEnvironment()
                     loadPlants(currentEnvironmentId!!)
                 } else {
                     updateUIForNoEnvironment()
@@ -140,6 +166,13 @@ class HomeFragment : Fragment() {
                 Log.e("HomeFragment", "Error loading environments", e)
                 showSnackbar("Error loading environments: ${e.message}")
             }
+    }
+
+    private fun selectCurrentEnvironment() {
+        val position = environments.indexOfFirst { it.id == currentEnvironmentId }
+        if (position != -1) {
+            binding.environmentSpinner.setSelection(position)
+        }
     }
 
     // Add this new method
@@ -174,13 +207,42 @@ class HomeFragment : Fragment() {
         plantAdapter = PlantAdapter(
             emptyList(),
             onDeleteClick = { plant -> showDeleteConfirmationDialog(plant) },
-            onEditClick = { plant -> editPlant(plant) }
+            onEditClick = { plant -> editPlant(plant) },
+            onPlantClick = { plant -> showPlantDetailsDialog(plant) }  // New click handler
         )
         binding.plantList.apply {
             layoutManager = LinearLayoutManager(context)
             adapter = plantAdapter
         }
     }
+
+
+    private fun showPlantDetailsDialog(plant: Plant) {
+        val dialogView = layoutInflater.inflate(R.layout.layout_plant_details_dialog, null)
+
+        // Load and display the plant's specific image
+        val imageView = dialogView.findViewById<ImageView>(R.id.plantImageView)
+        if (plant.imageUrl.isNotEmpty()) {
+            Glide.with(this)
+                .load(plant.imageUrl)
+                .into(imageView)
+        } else {
+            // If there's no image URL, hide the ImageView
+            imageView.visibility = View.GONE
+        }
+
+        dialogView.findViewById<TextView>(R.id.plantNameTextView).text = plant.name
+        dialogView.findViewById<TextView>(R.id.wateringFrequencyTextView).text =
+            "Water every ${plant.wateringFrequency} ${plant.frequencyPeriod}(s)"
+        dialogView.findViewById<TextView>(R.id.notesTextView).text = "Notes: ${plant.notes}"
+        dialogView.findViewById<TextView>(R.id.tagsTextView).text = "Tags: ${plant.tags.joinToString(", ")}"
+
+        MaterialAlertDialogBuilder(requireContext())
+            .setView(dialogView)
+            .setPositiveButton("Close", null)
+            .show()
+    }
+
 
     private fun checkForEnvironment() {
         val userId = auth.currentUser?.uid ?: return
@@ -275,6 +337,14 @@ class HomeFragment : Fragment() {
                     showSnackbar("Error creating environment: ${e.message}")
                 }
             }
+        }
+    }
+
+    private fun setUsername() {
+        val currentUser = FirebaseAuth.getInstance().currentUser
+        currentUser?.let { user ->
+            val displayName = user.displayName ?: "User"
+            view?.findViewById<TextView>(R.id.textViewUsername)?.text = "Hello $displayName"
         }
     }
 
@@ -373,6 +443,7 @@ class HomeFragment : Fragment() {
         } ?: run {
             Log.e("HomeFragment", "Attempted to add plant without a selected environment")
             showSnackbar("Please select an environment first")
+            checkForSelectedEnvironment() // Disable the FAB if no environment is selected
         }
     }
 

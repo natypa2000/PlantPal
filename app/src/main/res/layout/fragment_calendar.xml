@@ -1,35 +1,62 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
     android:padding="16dp"
+    android:background="#F0F4F0"
     tools:context=".CalendarFragment">
+
+    <include
+        android:id="@+id/toolbar"
+        layout="@layout/layout_toolbar" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Calendar"
+        android:textSize="24sp"
+        android:textStyle="bold"
+        android:textColor="#4CAF50"
+        android:layout_marginBottom="16dp"/>
 
     <CalendarView
         android:id="@+id/calendarView"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content" />
+        android:layout_height="wrap_content"
+        android:theme="@style/CalendarViewTheme" />
 
-    <EditText
-        android:id="@+id/editTextEvent"
+    <com.google.android.material.textfield.TextInputLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:hint="Enter event"
-        android:inputType="text" />
+        android:layout_marginTop="16dp"
+        app:boxStrokeColor="#4CAF50"
+        app:hintTextColor="#4CAF50">
+
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/editTextEvent"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Enter event"
+            android:inputType="text" />
+    </com.google.android.material.textfield.TextInputLayout>
 
     <Button
         android:id="@+id/buttonAddEvent"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Add Event" />
+        android:text="Add Event"
+        android:backgroundTint="#4CAF50"
+        android:layout_marginTop="16dp"/>
 
     <TextView
         android:id="@+id/textViewEvents"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
-        android:text="No events" />
+        android:text="No events"
+        android:textColor="#4CAF50" />
 
 </LinearLayout>

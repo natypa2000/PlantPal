@@ -13,15 +13,27 @@ import kotlinx.coroutines.withContext
 class PlantAdapter(
     private var plants: List<Plant>,
     private val onDeleteClick: (Plant) -> Unit,
-    private val onEditClick: (Plant) -> Unit
+    private val onEditClick: (Plant) -> Unit,
+    private val onPlantClick: (Plant) -> Unit
 ) : RecyclerView.Adapter<PlantAdapter.PlantViewHolder>() {
 
-    inner class PlantViewHolder(val binding: ItemPlantBinding) : RecyclerView.ViewHolder(binding.root)
+    inner class PlantViewHolder(val binding: ItemPlantBinding) : RecyclerView.ViewHolder(binding.root) {
+        init {
+            binding.root.setOnClickListener {
+                val position = adapterPosition
+                if (position != RecyclerView.NO_POSITION) {
+                    onPlantClick(plants[position])
+                }
+            }
+        }
+    }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): PlantViewHolder {
         val binding = ItemPlantBinding.inflate(LayoutInflater.from(parent.context), parent, false)
         return PlantViewHolder(binding)
     }
+
+
 
     override fun onBindViewHolder(holder: PlantViewHolder, position: Int) {
         val plant = plants[position]
