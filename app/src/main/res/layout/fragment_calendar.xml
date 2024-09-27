@@ -16,12 +16,10 @@
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Calendar"
         android:textSize="24sp"
         android:textStyle="bold"
         android:textColor="#4CAF50"
         android:layout_marginBottom="16dp"/>
-
     <CalendarView
         android:id="@+id/calendarView"
         android:layout_width="match_parent"
